@@ -159,6 +159,39 @@ export class Terrain {
   }
 
   /**
+   * Raycast from start to end point, checking for terrain collision.
+   * Used to prevent fast projectiles from tunneling through terrain.
+   * @returns Impact point {x, y} if collision found, null otherwise
+   */
+  raycastCollision(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number
+  ): { x: number; y: number } | null {
+    // Calculate distance and step count
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Check every pixel along the path (ensures no tunneling)
+    const steps = Math.max(1, Math.ceil(distance));
+    const stepX = dx / steps;
+    const stepY = dy / steps;
+
+    for (let i = 0; i <= steps; i++) {
+      const x = startX + stepX * i;
+      const y = startY + stepY * i;
+
+      if (this.isUnderground(x, y)) {
+        return { x, y };
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Create a crater at the specified position.
    * Erases terrain from the RenderTexture and updates the heightmap.
    */

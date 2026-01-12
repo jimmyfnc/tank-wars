@@ -415,9 +415,17 @@ export class GameScene extends Phaser.Scene {
       // Camera follows projectile
       this.cameraTarget = { x: this.projectile.x, y: this.projectile.y };
 
-      // Check collision with terrain
-      if (this.terrain.isUnderground(this.projectile.x, this.projectile.y)) {
-        this.handleImpact(this.projectile.x, this.projectile.y);
+      // Raycast collision from previous position to current position
+      // This prevents fast projectiles from tunneling through terrain
+      const impact = this.terrain.raycastCollision(
+        this.projectile.prevX,
+        this.projectile.prevY,
+        this.projectile.x,
+        this.projectile.y
+      );
+
+      if (impact) {
+        this.handleImpact(impact.x, impact.y);
       }
       // Check out of bounds
       else if (this.projectile.isOutOfBounds()) {

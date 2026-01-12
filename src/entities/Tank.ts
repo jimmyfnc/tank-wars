@@ -113,7 +113,8 @@ export class Tank {
   private drawHealthBar(): void {
     const barWidth = GAME_CONFIG.TANK_WIDTH + 10;
     const barHeight = 6;
-    const barY = this.y - GAME_CONFIG.TANK_HEIGHT - 15;
+    // Position health bar above the turret's maximum height (when pointing straight up)
+    const barY = this.y - GAME_CONFIG.TANK_HEIGHT - GAME_CONFIG.TURRET_LENGTH - 8;
     const barX = this.x - barWidth / 2;
 
     // Background (dark)

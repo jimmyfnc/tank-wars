@@ -12,6 +12,10 @@ export class Projectile {
   public x: number;
   public y: number;
 
+  // Previous position (for collision raycast)
+  public prevX: number;
+  public prevY: number;
+
   // Velocity (pixels per second)
   public vx: number;
   public vy: number;
@@ -25,6 +29,8 @@ export class Projectile {
   constructor(scene: Phaser.Scene) {
     this.x = 0;
     this.y = 0;
+    this.prevX = 0;
+    this.prevY = 0;
     this.vx = 0;
     this.vy = 0;
 
@@ -37,6 +43,8 @@ export class Projectile {
   fire(x: number, y: number, vx: number, vy: number, wind: number): void {
     this.x = x;
     this.y = y;
+    this.prevX = x;
+    this.prevY = y;
     this.vx = vx;
     this.vy = vy;
     this.wind = wind;
@@ -56,6 +64,10 @@ export class Projectile {
    */
   update(dt: number): void {
     if (!this.active) return;
+
+    // Store previous position for collision raycast
+    this.prevX = this.x;
+    this.prevY = this.y;
 
     // Apply gravity (accelerates vy positively since y+ is down)
     this.vy += GAME_CONFIG.GRAVITY * dt;
@@ -110,6 +122,8 @@ export class Projectile {
     this.active = false;
     this.x = 0;
     this.y = 0;
+    this.prevX = 0;
+    this.prevY = 0;
     this.vx = 0;
     this.vy = 0;
     this.graphics.clear();
