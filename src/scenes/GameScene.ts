@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_CONFIG } from '../config';
+import { GAME_CONFIG, type TerrainPreset } from '../config';
 import { Terrain } from '../world/Terrain';
 import { Tank } from '../entities/Tank';
 import { Projectile } from '../entities/Projectile';
@@ -52,18 +52,26 @@ export class GameScene extends Phaser.Scene {
   // Track if tanks are currently falling
   private tanksSettling: boolean = false;
 
+  // Terrain configuration
+  private terrainPreset: TerrainPreset = 'rolling_hills';
+
   constructor() {
     super({ key: 'GameScene' });
   }
 
-  init(data: { vsAI?: boolean; aiPersonality?: AIPersonality }): void {
+  init(data: {
+    vsAI?: boolean;
+    aiPersonality?: AIPersonality;
+    terrainPreset?: TerrainPreset;
+  }): void {
     this.vsAI = data.vsAI || false;
     this.aiPersonality = data.aiPersonality || AIPersonality.SHARPSHOOTER;
+    this.terrainPreset = data.terrainPreset || 'rolling_hills';
   }
 
   create(): void {
     // Create terrain first (background layer)
-    this.terrain = new Terrain(this);
+    this.terrain = new Terrain(this, this.terrainPreset);
 
     // Create tanks on opposite sides of the map
     this.createTanks();
