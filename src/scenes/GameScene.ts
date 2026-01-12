@@ -43,9 +43,6 @@ export class GameScene extends Phaser.Scene {
   private hp2Text!: Phaser.GameObjects.Text;
   private winnerText!: Phaser.GameObjects.Text;
 
-  // Explosion graphics
-  private explosionGraphics!: Phaser.GameObjects.Graphics;
-
   // Juice effects manager
   private juice!: JuiceManager;
 
@@ -73,9 +70,6 @@ export class GameScene extends Phaser.Scene {
 
     // Create projectile (reused each shot)
     this.projectile = new Projectile(this);
-
-    // Create explosion graphics
-    this.explosionGraphics = this.add.graphics();
 
     // Initialize juice effects system
     this.juice = new JuiceManager(this);
@@ -311,9 +305,6 @@ export class GameScene extends Phaser.Scene {
 
     // After explosion animation, check for tank falling then resolve
     this.time.delayedCall(GAME_CONFIG.EXPLOSION_DURATION, () => {
-      this.explosionGraphics.clear();
-
-      // Check if tanks need to fall due to terrain destruction
       this.startTankSettling();
     });
   }
@@ -583,9 +574,6 @@ export class GameScene extends Phaser.Scene {
 
     // Reset projectile
     this.projectile.reset();
-
-    // Clear explosion
-    this.explosionGraphics.clear();
 
     // Reset turn manager
     this.turnManager.reset();
