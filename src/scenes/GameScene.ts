@@ -296,8 +296,9 @@ export class GameScene extends Phaser.Scene {
     this.projectile.deactivate();
     this.turnManager.projectileLanded();
 
-    // Calculate intensity based on potential damage
-    const intensity = 1.0; // Full explosion
+    // Intensity is 1.0 for all explosions since we only have one weapon type.
+    // When multiple weapons are added, this should vary based on weapon damage/radius.
+    const intensity = 1.0;
 
     // Trigger juice effects (particles, shake, sound)
     this.juice.explosion(x, y, intensity);
@@ -554,8 +555,9 @@ export class GameScene extends Phaser.Scene {
     const halfWidth = camera.width / 2;
     const halfHeight = camera.height / 2;
 
-    camera.scrollX = Phaser.Math.Clamp(newX - halfWidth, 0, GAME_CONFIG.WORLD_WIDTH - camera.width) + shakeOffset.x;
-    camera.scrollY = Phaser.Math.Clamp(newY - halfHeight, 0, GAME_CONFIG.WORLD_HEIGHT - camera.height) + shakeOffset.y;
+    // Apply shake offset BEFORE clamping so camera stays in world bounds
+    camera.scrollX = Phaser.Math.Clamp(newX - halfWidth + shakeOffset.x, 0, GAME_CONFIG.WORLD_WIDTH - camera.width);
+    camera.scrollY = Phaser.Math.Clamp(newY - halfHeight + shakeOffset.y, 0, GAME_CONFIG.WORLD_HEIGHT - camera.height);
   }
 
   /**
