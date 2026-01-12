@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import { JUICE_CONFIG, getQualityValue } from './JuiceConfig';
+import { GAME_CONFIG } from '../config';
 
 interface Particle {
   x: number;
@@ -192,7 +193,7 @@ export class ParticleSystem {
    * Update all particles. Call each frame.
    */
   update(dt: number): void {
-    this.frameCount++;
+    this.frameCount = (this.frameCount + 1) % 1000000;
 
     // Update particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -206,7 +207,7 @@ export class ParticleSystem {
 
       // Apply gravity
       if (p.gravity) {
-        p.vy += 400 * dt; // Match game gravity
+        p.vy += GAME_CONFIG.GRAVITY * dt;
       }
 
       // Move
@@ -227,7 +228,7 @@ export class ParticleSystem {
 
     for (const p of this.particles) {
       const progress = p.lifetime / p.maxLifetime;
-      const color = p.palette[Math.min(p.colorIndex, p.palette.length - 1)];
+      const color = p.palette[p.colorIndex];
 
       // SNES-style dithered fade: use checkerboard pattern in final 30% of life
       if (progress > 0.7) {
