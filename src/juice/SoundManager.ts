@@ -25,6 +25,7 @@ class SynthSoundProvider implements ISoundProvider {
   private masterGain: GainNode | null = null;
   private activeOscillators: number = 0;
   private maxOscillators: number = 6; // SNES-style limited channels
+  private noiseBufferCache: Map<number, AudioBuffer> = new Map(); // Cache noise buffers by duration
 
   private getContext(): AudioContext | null {
     if (!this.audioContext) {
@@ -45,7 +46,10 @@ class SynthSoundProvider implements ISoundProvider {
     const ctx = this.getContext();
     if (!ctx || !this.masterGain) return;
 
-    // Resume context if suspended (browser autoplay policy)
+    // Resume context if suspended (browser autoplay policy).
+    // Note: ctx.resume() is async but we intentionally don't await it here.
+    // If the context is suspended, sounds will queue and play when resumed.
+    // This avoids blocking the game loop while waiting for user interaction.
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
@@ -57,6 +61,10 @@ class SynthSoundProvider implements ISoundProvider {
     const config = JUICE_CONFIG.sounds[name as keyof typeof JUICE_CONFIG.sounds];
     if (!config) return;
 
+    // Validate config values
+    const duration = config.duration > 0 ? config.duration : 0.1;
+    const noiseAmount = Math.max(0, Math.min(1, config.noiseAmount));
+
     const now = ctx.currentTime;
 
     // Create oscillator for tone
@@ -66,8 +74,8 @@ class SynthSoundProvider implements ISoundProvider {
     osc.type = 'square'; // SNES-style square wave
     osc.frequency.value = config.frequency * (0.95 + Math.random() * 0.1); // ±5% variation
 
-    // Create noise for texture
-    const noiseBuffer = this.createNoiseBuffer(ctx, config.duration);
+    // Create noise for texture (using cached buffer)
+    const noiseBuffer = this.getOrCreateNoiseBuffer(ctx, duration);
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
     const noiseGain = ctx.createGain();
@@ -88,24 +96,24 @@ class SynthSoundProvider implements ISoundProvider {
 
     // Set volumes based on noise amount and intensity
     const baseVolume = 0.3 * intensity;
-    oscGain.gain.setValueAtTime(baseVolume * (1 - config.noiseAmount), now);
-    noiseGain.gain.setValueAtTime(baseVolume * config.noiseAmount, now);
+    oscGain.gain.setValueAtTime(baseVolume * (1 - noiseAmount), now);
+    noiseGain.gain.setValueAtTime(baseVolume * noiseAmount, now);
 
     // Envelope: quick attack, decay to zero
-    oscGain.gain.exponentialRampToValueAtTime(0.01, now + config.duration);
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + config.duration);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + duration);
 
     // Pitch drop for impact sounds
     if (name === 'explosion' || name === 'hit' || name === 'land') {
-      osc.frequency.exponentialRampToValueAtTime(config.frequency * 0.5, now + config.duration);
+      osc.frequency.exponentialRampToValueAtTime(config.frequency * 0.5, now + duration);
     }
 
     // Start and stop
     this.activeOscillators++;
     osc.start(now);
     noise.start(now);
-    osc.stop(now + config.duration);
-    noise.stop(now + config.duration);
+    osc.stop(now + duration);
+    noise.stop(now + duration);
 
     osc.onended = () => {
       this.activeOscillators--;
@@ -117,7 +125,18 @@ class SynthSoundProvider implements ISoundProvider {
     };
   }
 
-  private createNoiseBuffer(ctx: AudioContext, duration: number): AudioBuffer {
+  /**
+   * Get or create a noise buffer for the given duration.
+   * Caches buffers by duration to prevent memory leaks from recreating buffers.
+   */
+  private getOrCreateNoiseBuffer(ctx: AudioContext, duration: number): AudioBuffer {
+    // Check cache first
+    const cached = this.noiseBufferCache.get(duration);
+    if (cached) {
+      return cached;
+    }
+
+    // Create new buffer
     const sampleRate = ctx.sampleRate;
     const length = Math.floor(sampleRate * duration);
     const buffer = ctx.createBuffer(1, length, sampleRate);
@@ -126,6 +145,9 @@ class SynthSoundProvider implements ISoundProvider {
     for (let i = 0; i < length; i++) {
       data[i] = Math.random() * 2 - 1;
     }
+
+    // Cache for reuse
+    this.noiseBufferCache.set(duration, buffer);
 
     return buffer;
   }
