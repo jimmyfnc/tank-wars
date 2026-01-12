@@ -172,6 +172,13 @@ export class GameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5).setVisible(false);
 
+    // Add click handler for game over - any click restarts
+    this.input.on('pointerdown', () => {
+      if (this.turnManager.isGameOver()) {
+        this.restartGame();
+      }
+    });
+
     // Container to group UI elements (keeps them fixed on screen)
     this.uiContainer = this.add.container(0, 0, [
       uiBg,
@@ -212,7 +219,7 @@ export class GameScene extends Phaser.Scene {
     // Show winner if game over
     if (this.turnManager.isGameOver()) {
       const winnerName = this.turnManager.winner === 1 ? 'Player 1' : (this.vsAI ? 'Computer' : 'Player 2');
-      this.winnerText.setText(`${winnerName} Wins!\n\nR - Restart | ESC - Menu`);
+      this.winnerText.setText(`${winnerName} Wins!\n\nClick or R - Restart\nESC - Menu`);
       this.winnerText.setVisible(true);
     } else {
       this.winnerText.setVisible(false);
@@ -271,6 +278,10 @@ export class GameScene extends Phaser.Scene {
 
       case GameState.GAME_OVER:
         this.updateUI();
+        // Ensure keyboard input is still active for restart/menu
+        if (this.input.keyboard) {
+          this.input.keyboard.resetKeys();
+        }
         break;
     }
   }
@@ -391,14 +402,14 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     const dt = delta / 1000; // Convert to seconds
 
-    // Handle escape to return to menu
-    if (Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
+    // Handle escape to return to menu (check key exists first)
+    if (this.escapeKey && Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
       this.scene.start('MenuScene');
       return;
     }
 
-    // Handle restart
-    if (Phaser.Input.Keyboard.JustDown(this.restartKey)) {
+    // Handle restart (check key exists first)
+    if (this.restartKey && Phaser.Input.Keyboard.JustDown(this.restartKey)) {
       this.restartGame();
       return;
     }
