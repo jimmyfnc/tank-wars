@@ -5,6 +5,7 @@ import { Tank } from '../entities/Tank';
 import { Projectile } from '../entities/Projectile';
 import { TurnManager, GameState } from '../state/TurnManager';
 import { TankAI, AIPersonality } from '../ai/TankAI';
+import { JuiceManager } from '../juice';
 
 /**
  * GameScene - Main game scene containing all gameplay logic.
@@ -45,6 +46,9 @@ export class GameScene extends Phaser.Scene {
   // Explosion graphics
   private explosionGraphics!: Phaser.GameObjects.Graphics;
 
+  // Juice effects manager
+  private juice!: JuiceManager;
+
   // Camera transition state
   private cameraTarget: { x: number; y: number } | null = null;
 
@@ -72,6 +76,9 @@ export class GameScene extends Phaser.Scene {
 
     // Create explosion graphics
     this.explosionGraphics = this.add.graphics();
+
+    // Initialize juice effects system
+    this.juice = new JuiceManager(this);
 
     // Initialize turn manager
     this.turnManager = new TurnManager();
@@ -274,6 +281,10 @@ export class GameScene extends Phaser.Scene {
     const tip = tank.getTurretTip();
     const vel = tank.getFireVelocity();
 
+    // Fire juice effects (muzzle flash + sound)
+    const fireAngle = Math.atan2(vel.vy, vel.vx);
+    this.juice.fire(tip.x, tip.y, fireAngle);
+
     this.projectile.fire(tip.x, tip.y, vel.vx, vel.vy, this.turnManager.wind);
     this.turnManager.fire();
   }
@@ -285,8 +296,11 @@ export class GameScene extends Phaser.Scene {
     this.projectile.deactivate();
     this.turnManager.projectileLanded();
 
-    // Show explosion
-    this.showExplosion(x, y);
+    // Calculate intensity based on potential damage
+    const intensity = 1.0; // Full explosion
+
+    // Trigger juice effects (particles, shake, sound)
+    this.juice.explosion(x, y, intensity);
 
     // Create crater in terrain (destructible terrain!)
     this.terrain.createCrater(x, y, GAME_CONFIG.EXPLOSION_RADIUS);
@@ -338,21 +352,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Show explosion effect at position
-   */
-  private showExplosion(x: number, y: number): void {
-    this.explosionGraphics.clear();
-
-    // Draw explosion circle
-    this.explosionGraphics.fillStyle(GAME_CONFIG.COLORS.EXPLOSION, 0.8);
-    this.explosionGraphics.fillCircle(x, y, GAME_CONFIG.EXPLOSION_RADIUS);
-
-    // Inner brighter circle
-    this.explosionGraphics.fillStyle(0xffff00, 0.9);
-    this.explosionGraphics.fillCircle(x, y, GAME_CONFIG.EXPLOSION_RADIUS * 0.5);
-  }
-
-  /**
    * Apply explosion damage to tanks within radius
    */
   private applyExplosionDamage(x: number, y: number): void {
@@ -371,11 +370,16 @@ export class GameScene extends Phaser.Scene {
         let damage = Math.round(maxDamage * damageFactor);
 
         // Bonus damage for very close hits (direct hit)
-        if (distance < 30) {
+        const isDirectHit = distance < 30;
+        if (isDirectHit) {
           damage += directHitBonus;
         }
 
         tank.takeDamage(damage);
+
+        // Show damage number
+        this.juice.showDamage(tank.x, tank.y, damage, isDirectHit);
+
         console.log(`Tank ${tank.playerId} hit! Distance: ${distance.toFixed(1)}, Damage: ${damage}`);
       }
     });
@@ -412,6 +416,9 @@ export class GameScene extends Phaser.Scene {
     // Update projectile if active
     if (this.projectile.active) {
       this.projectile.update(dt);
+
+      // Spawn smoke trail particles
+      this.juice.trail(this.projectile.x, this.projectile.y);
 
       // Camera follows projectile
       this.cameraTarget = { x: this.projectile.x, y: this.projectile.y };
@@ -477,9 +484,14 @@ export class GameScene extends Phaser.Scene {
       if (!tank.alive || !tank.isFalling) return;
 
       const groundY = this.terrain.getGroundY(tank.x);
+      const previousY = tank.y;
       const landed = tank.updateFalling(dt, groundY);
 
-      if (!landed && tank.isFalling) {
+      if (landed) {
+        // Tank just landed - trigger dust and sound
+        const fallDistance = groundY - previousY;
+        this.juice.tankLanded(tank.x, tank.y, Math.abs(fallDistance));
+      } else if (tank.isFalling) {
         anyStillFalling = true;
         // Camera follows falling tank
         this.cameraTarget = { x: tank.x, y: tank.y };
@@ -524,6 +536,9 @@ export class GameScene extends Phaser.Scene {
    * Smooth camera movement toward target
    */
   private updateCamera(dt: number): void {
+    // Update juice systems and get shake offset
+    const { shakeOffset } = this.juice.update(dt);
+
     if (!this.cameraTarget) return;
 
     const camera = this.cameras.main;
@@ -531,7 +546,7 @@ export class GameScene extends Phaser.Scene {
     const currentY = camera.scrollY + camera.height / 2;
 
     // Ease toward target
-    const easeSpeed = 3; // Higher = faster
+    const easeSpeed = 3;
     const newX = Phaser.Math.Linear(currentX, this.cameraTarget.x, easeSpeed * dt);
     const newY = Phaser.Math.Linear(currentY, this.cameraTarget.y, easeSpeed * dt);
 
@@ -539,8 +554,8 @@ export class GameScene extends Phaser.Scene {
     const halfWidth = camera.width / 2;
     const halfHeight = camera.height / 2;
 
-    camera.scrollX = Phaser.Math.Clamp(newX - halfWidth, 0, GAME_CONFIG.WORLD_WIDTH - camera.width);
-    camera.scrollY = Phaser.Math.Clamp(newY - halfHeight, 0, GAME_CONFIG.WORLD_HEIGHT - camera.height);
+    camera.scrollX = Phaser.Math.Clamp(newX - halfWidth, 0, GAME_CONFIG.WORLD_WIDTH - camera.width) + shakeOffset.x;
+    camera.scrollY = Phaser.Math.Clamp(newY - halfHeight, 0, GAME_CONFIG.WORLD_HEIGHT - camera.height) + shakeOffset.y;
   }
 
   /**
@@ -549,6 +564,9 @@ export class GameScene extends Phaser.Scene {
   private restartGame(): void {
     // Reset terrain
     this.terrain.reset();
+
+    // Reset juice effects
+    this.juice.reset();
 
     // Reposition tanks
     const tank1X = 80;
