@@ -1,13 +1,23 @@
 import Phaser from 'phaser';
-import { GAME_CONFIG } from '../config';
+import { GAME_CONFIG, TERRAIN_PRESETS, type TerrainPreset } from '../config';
 import { AIPersonality } from '../ai/TankAI';
 
 /**
- * MenuScene - Title screen with game mode selection
+ * MenuScene - Title screen with game mode and terrain selection
  */
 export class MenuScene extends Phaser.Scene {
   private selectedAI: AIPersonality = AIPersonality.SHARPSHOOTER;
   private aiButtons: Phaser.GameObjects.Text[] = [];
+
+  // Terrain selection
+  private selectedTerrain: TerrainPreset = 'rolling_hills';
+  private terrainLabel!: Phaser.GameObjects.Text;
+  private readonly terrainPresets: TerrainPreset[] = [
+    'rolling_hills',
+    'flat_plains',
+    'mountains',
+    'cratered',
+  ];
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -17,38 +27,45 @@ export class MenuScene extends Phaser.Scene {
     const centerX = GAME_CONFIG.SCREEN_WIDTH / 2;
 
     // Title
-    this.add.text(centerX, 80, 'TANK WARS', {
-      fontSize: '64px',
-      color: '#ffffff',
-      fontFamily: 'monospace',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    this.add
+      .text(centerX, 60, 'TANK WARS', {
+        fontSize: '64px',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
     // Subtitle
-    this.add.text(centerX, 140, 'Destructible Terrain Edition', {
-      fontSize: '18px',
-      color: '#aaaaaa',
-      fontFamily: 'monospace'
-    }).setOrigin(0.5);
+    this.add
+      .text(centerX, 115, 'Destructible Terrain Edition', {
+        fontSize: '18px',
+        color: '#aaaaaa',
+        fontFamily: 'monospace',
+      })
+      .setOrigin(0.5);
 
     // Game mode section
-    this.add.text(centerX, 190, 'Select Game Mode:', {
-      fontSize: '20px',
-      color: '#ffffff',
-      fontFamily: 'monospace'
-    }).setOrigin(0.5);
+    this.add
+      .text(centerX, 160, 'Select Game Mode:', {
+        fontSize: '18px',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+      })
+      .setOrigin(0.5);
 
     // Button style
     const buttonStyle = {
-      fontSize: '24px',
+      fontSize: '22px',
       color: '#ffffff',
       fontFamily: 'monospace',
       backgroundColor: '#444444',
-      padding: { x: 25, y: 12 }
+      padding: { x: 20, y: 10 },
     };
 
     // 2 Player Button
-    const twoPlayerBtn = this.add.text(centerX, 240, '2 PLAYERS', buttonStyle)
+    const twoPlayerBtn = this.add
+      .text(centerX, 200, '2 PLAYERS', buttonStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
@@ -63,7 +80,8 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // VS AI Button
-    const vsAiBtn = this.add.text(centerX, 300, 'VS COMPUTER', buttonStyle)
+    const vsAiBtn = this.add
+      .text(centerX, 250, 'VS COMPUTER', buttonStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
@@ -78,43 +96,47 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // AI Selection section
-    this.add.text(centerX, 360, 'AI Personality:', {
-      fontSize: '18px',
-      color: '#cccccc',
-      fontFamily: 'monospace'
-    }).setOrigin(0.5);
+    this.add
+      .text(centerX, 300, 'AI Personality:', {
+        fontSize: '16px',
+        color: '#cccccc',
+        fontFamily: 'monospace',
+      })
+      .setOrigin(0.5);
 
     // AI personality buttons
     const aiTypes = [
       { type: AIPersonality.SHARPSHOOTER, label: 'SHARPSHOOTER', desc: 'Precise & deadly' },
       { type: AIPersonality.ARTILLERY, label: 'ARTILLERY', desc: 'High arcs & power' },
-      { type: AIPersonality.DRUNK, label: 'DRUNK', desc: 'Unpredictable chaos' }
+      { type: AIPersonality.DRUNK, label: 'DRUNK', desc: 'Unpredictable chaos' },
     ];
 
     const aiButtonStyle = {
-      fontSize: '14px',
+      fontSize: '12px',
       color: '#ffffff',
       fontFamily: 'monospace',
       backgroundColor: '#333333',
-      padding: { x: 10, y: 6 }
+      padding: { x: 8, y: 5 },
     };
 
-    const startX = centerX - 200;
-    const spacing = 140;
+    const startX = centerX - 180;
+    const spacing = 130;
 
     aiTypes.forEach((ai, index) => {
       const x = startX + index * spacing;
 
-      const btn = this.add.text(x, 400, ai.label, aiButtonStyle)
+      const btn = this.add
+        .text(x, 335, ai.label, aiButtonStyle)
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
-      // Description text below button
-      this.add.text(x, 425, ai.desc, {
-        fontSize: '10px',
-        color: '#888888',
-        fontFamily: 'monospace'
-      }).setOrigin(0.5);
+      this.add
+        .text(x, 355, ai.desc, {
+          fontSize: '9px',
+          color: '#888888',
+          fontFamily: 'monospace',
+        })
+        .setOrigin(0.5);
 
       btn.on('pointerover', () => {
         if (this.selectedAI !== ai.type) {
@@ -133,36 +155,91 @@ export class MenuScene extends Phaser.Scene {
       });
 
       this.aiButtons.push(btn);
-
-      // Store the AI type on the button for reference
       (btn as Phaser.GameObjects.Text & { aiType: AIPersonality }).aiType = ai.type;
     });
 
-    // Highlight initial selection
     this.updateAIButtonStyles();
+
+    // Terrain Selection section
+    this.add
+      .text(centerX, 395, 'Terrain:', {
+        fontSize: '16px',
+        color: '#cccccc',
+        fontFamily: 'monospace',
+      })
+      .setOrigin(0.5);
+
+    // Terrain selector with arrows
+    const terrainSelectorStyle = {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      backgroundColor: '#335533',
+      padding: { x: 15, y: 8 },
+    };
+
+    // Left arrow
+    const leftArrow = this.add
+      .text(centerX - 130, 430, '◄', {
+        fontSize: '24px',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    leftArrow.on('pointerover', () => leftArrow.setColor('#88ff88'));
+    leftArrow.on('pointerout', () => leftArrow.setColor('#ffffff'));
+    leftArrow.on('pointerdown', () => this.cycleTerrain(-1));
+
+    // Terrain label (shows current selection)
+    this.terrainLabel = this.add
+      .text(centerX, 430, TERRAIN_PRESETS[this.selectedTerrain].description, terrainSelectorStyle)
+      .setOrigin(0.5);
+
+    // Right arrow
+    const rightArrow = this.add
+      .text(centerX + 130, 430, '►', {
+        fontSize: '24px',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    rightArrow.on('pointerover', () => rightArrow.setColor('#88ff88'));
+    rightArrow.on('pointerout', () => rightArrow.setColor('#ffffff'));
+    rightArrow.on('pointerdown', () => this.cycleTerrain(1));
+
+    // Keyboard controls for terrain selection
+    this.input.keyboard?.on('keydown-LEFT', () => this.cycleTerrain(-1));
+    this.input.keyboard?.on('keydown-RIGHT', () => this.cycleTerrain(1));
 
     // Controls info
     const controlsText = [
       'Controls:',
-      'LEFT/RIGHT - Adjust Angle',
+      'LEFT/RIGHT - Adjust Angle (or cycle terrain)',
       'UP/DOWN - Adjust Power',
-      'SPACE - Fire',
-      'R - Restart | ESC - Menu'
+      'SPACE - Fire | R - Restart | ESC - Menu',
     ].join('\n');
 
-    this.add.text(centerX, 510, controlsText, {
-      fontSize: '12px',
-      color: '#888888',
-      fontFamily: 'monospace',
-      align: 'center'
-    }).setOrigin(0.5);
+    this.add
+      .text(centerX, 510, controlsText, {
+        fontSize: '11px',
+        color: '#888888',
+        fontFamily: 'monospace',
+        align: 'center',
+      })
+      .setOrigin(0.5);
 
     // Version
-    this.add.text(GAME_CONFIG.SCREEN_WIDTH - 10, GAME_CONFIG.SCREEN_HEIGHT - 10, 'v0.3.0', {
-      fontSize: '12px',
-      color: '#666666',
-      fontFamily: 'monospace'
-    }).setOrigin(1, 1);
+    this.add
+      .text(GAME_CONFIG.SCREEN_WIDTH - 10, GAME_CONFIG.SCREEN_HEIGHT - 10, 'v0.4.0', {
+        fontSize: '12px',
+        color: '#666666',
+        fontFamily: 'monospace',
+      })
+      .setOrigin(1, 1);
   }
 
   private selectAI(personality: AIPersonality): void {
@@ -171,7 +248,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private updateAIButtonStyles(): void {
-    this.aiButtons.forEach(btn => {
+    this.aiButtons.forEach((btn) => {
       const typedBtn = btn as Phaser.GameObjects.Text & { aiType: AIPersonality };
       if (typedBtn.aiType === this.selectedAI) {
         btn.setStyle({ backgroundColor: '#006600', color: '#ffffff' });
@@ -181,10 +258,23 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
+  private cycleTerrain(direction: number): void {
+    const currentIndex = this.terrainPresets.indexOf(this.selectedTerrain);
+    let newIndex = currentIndex + direction;
+
+    // Wrap around
+    if (newIndex < 0) newIndex = this.terrainPresets.length - 1;
+    if (newIndex >= this.terrainPresets.length) newIndex = 0;
+
+    this.selectedTerrain = this.terrainPresets[newIndex];
+    this.terrainLabel.setText(TERRAIN_PRESETS[this.selectedTerrain].description);
+  }
+
   private startGame(vsAI: boolean): void {
     this.scene.start('GameScene', {
       vsAI,
-      aiPersonality: this.selectedAI
+      aiPersonality: this.selectedAI,
+      terrainPreset: this.selectedTerrain,
     });
   }
 }
